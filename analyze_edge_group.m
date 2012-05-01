@@ -3,10 +3,11 @@
 folder = 'E:\Work\instability\ROMS\si_part\edge\';
 %runs = {'run02','run06','run07','run08'};
 %aa = [1.1 1.5 1.3 1.4];
-runs={'run11','run13','run12','run14','run18','run19'}; %'run06','run10' - 30,40
-aa = [50 60 70 100 101 150];
-%runs = {'run11','run15','run16','run17'};
-%aa = [11 15 16 17];
+%runs={'run11','run13','run12','run14','run18','run19','run120'}; %'run06','run10' - 30,40
+%aa = [50 60 70 100 101 150 120];
+runs = {'run50_1','run50_2','run50_3','run50_4','run50_5','run50_6','run50_7''run50_8'};
+aa = [32.445040 40.231040 46.231040 32.2310040 40.345040 40.345060 36.455040];
+%runs={'run120'}
 colors = distinguishable_colors(length(aa));
 
 redo_l = 0;
@@ -49,8 +50,12 @@ for i=1:length(runs)
     tind = find_approx(time_A,tmax,1);
     Aruns{i} = A(1:tind);
     pk = findpeaks(A(1:tind),'SORTSTR','descend');
-    mind = find(A(1:tind) == pk(1));
-    Amax(i) = pk(1);
+    try 
+        mind = find(A(1:tind) == pk(1));
+    catch ME
+        mind = find(time_A(1:tind)./86400 == 1.5);
+    end
+    Amax(i) = A(mind);
     tAmax(i) = time_A(find(A(1:tind) == Amax(i)));
     t_Aruns{i} = time_A(1:tind);
     

@@ -28,7 +28,7 @@ zmid = ceil(size(roms_grid.z_r  ,1)/2);
 % load data
 load energy-avg-x.mat
 load length_scales_u.mat
-load('pv.mat','tpv');
+%load('pv.mat','tpv');
 
 temp = squeeze(double(ncread(fname,'temp',[1 1 1 1],[Inf Inf Inf Inf])));
 v = squeeze(double(ncread(fname,'v',[1 1 1 1],[Inf Inf Inf Inf])));
@@ -135,17 +135,161 @@ for i=2:size(u,4)
     pause;
 end
     
-%% Increase in size of region with rolls
+%% Find width of region with instabilities
 
 % Find region where symmetric rolls exist
 
-u = double(ncread('ocean_his.nc','u',[1 1 1 1],[Inf Inf Inf Inf]));
+% problems 
+%   - gradient in PV means right side has lesser growth rate.
+%   - should I calculate growth rates for each region separately and then calculate width?
+clear all
+fname = 'ocean_his.nc';
 
-j = 50;
+if ~exist('u','var')
+    u = double(ncread(fname,'u',[1 1 1 1],[Inf Inf Inf Inf]));
+end
+
+roms_grid = roms_get_grid(fname,fname,0,1);
+time = ncread(fname,'ocean_time');
+j = 3;
+
+if ~exist('energy-avg-x.mat','file'), roms_energy(fname,[],4,1,0); end
+
+load energy-avg-x.mat
+tAmax = time_A(find(A == max(A)));
+tind = find_approx(time,tAmax,1);
 
 % need to do better averaging
 um   = mean(u(:,j,:,:),1);
 up = squeeze(bsxfun(@minus,u(:,j,:,:),um));
+
+data = up(:,20,tind);
+thresh = 0.3;
+
+xu = roms_grid.x_u(1,:);
+dx = mean(diff(xu));
+nx = length(xu);
+range = {[1:floor(nx/2)], [floor(nx/2)+1:nx]};
+
+[wave,period,scale,coi] = wavelet(data,dx,1);
+enwave = abs(wave).^2;
+
+% plot energy 'spectrum'
+h1 = figure;
+pcolor(xu/1000,log(period),enwave); shading interp
+hold on; revz
+plot(xu/1000,log(coi),'k','LineWidth',1.5);
+xlabel('X (km)'); ylabel('Wavenumber (m^{-1})');
+
+% plot u field
+mod_movie(fname,'u',[tind tind],{},'y','mid','pcolor;shading interp;liney(-50)');
+hold on;
+h2 = gcf;
+
+for i=1:2
+      rr = range{i};
+     dat = data(rr);
+    xdat =   xu(rr);
+    
+    % find maxima
+         m = enwave(:,rr);
+    maxind = find(m == max(m(:)));
+     [a,b] = ind2sub(size(m),maxind);
+    
+    % calculate width
+       m = abs(wave(a,rr)).^2;
+     ind = find(m > thresh*max(m));    
+    w(i) = (ind(end)-ind(1))*dx;
+    l(i) = period(a);
+    
+    % put on 
+    figure(h1)
+    linex((rr(1)+ind(1))*dx/1000,''); linex((rr(1)+ind(end))*dx/1000,'');
+    liney(log(period(a)));
+    
+    figure(h2)
+    linex((rr(1)+ind(1))*dx/1000,''); linex((rr(1)+ind(end))*dx/1000,'');
+    liney(log(period(a)));
+end
+
+figure(h1); title(['Width = ' num2str(w./1000) ' km']);
+figure(h2); title(['Width = ' num2str(w./1000) ' km']);
+
+% w1 = (ind(loc)-ind(1))*dx
+% w2 = (ind(end) - ind(loc+1))*dx
+
+%% compare with 2D run
+dir = 'E:\Work\instability\ROMS\si_part\edge\';
+dir2D = [dir 'run150_lsi_2d1.5\'];
+dir3D = [dir 'run150_lsi_redo2\'];
+
+file2d = [dir2D 'ocean_his.nc'];
+file3d = [dir3D 'ocean_his.nc'];
+
+% add some slab stuff
+% %% movies
+% u2d = ncread(file2D,'u');
+% u3d = ncread(file3D,'u');
+% 
+% diffu = bsxfun(@minus,u3d,u2d);
+% animate(diffu);
+
+% compare diagnostics
+
+h1 = figure;
+
+volume = {'x' '12000' '32000'};
+
+% 2d
+cd(dir2D);
+if ~exist('length_scales_u.mat')
+    roms_length_scales(file2D,'u',[],volume);
+end
+if ~exist('energy-avg-x.mat')
+    roms_energy(file3D,[],4,1,0);
+end
+
+load length_scales_u.mat
+L2d = L;
+t2d = time_L;figure(h1)
+subplot(212)
+plot(t2d/86400,L2d,'r','LineWidth',1.5); hold on
+ylabel('Length Scales (m)');
+
+load energy-avg-x.mat
+A2d = A;
+tA2d = time_A;
+figure(h1)
+subplot(211)
+plot(tA2d/86400,A2d*86400,'r','LineWidth',1.5); hold on
+
+% 3d
+cd(dir3D);
+if ~exist('length_scales_u.mat')
+    roms_length_scales(file3d,'u',[],volume);
+end
+if ~exist('energy-avg-x.mat')
+    roms_energy(file3d,[],4,1,0);
+end
+
+load length_scales_u.mat
+L3d = L;
+t3d = time_L;
+figure(h1);
+subplot(212)
+plot(t3d/86400,L3d,'k','LineWidth',1.5); hold on
+xlabel('Time (days)');
+
+load energy-avg-x.mat
+A3d = A;
+tA3d = time_A;
+figure(h1)
+subplot(211)
+plot(tA3d/86400,A3d*86400,'k','LineWidth',1.5); hold on
+legend('2D','3D','Location','Best');
+ylabel('Growth Rate (d^{-1})');
+
+
 
 %% old scaling
 % N2 = 1e-5;
