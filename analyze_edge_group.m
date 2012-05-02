@@ -1,4 +1,5 @@
 % plots for bunch of edge effects runs
+% Convergence tests
 
 folder = 'E:\Work\instability\ROMS\si_part\edge\';
 %runs = {'run02','run06','run07','run08'};

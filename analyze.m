@@ -5,6 +5,8 @@ pvname = 'ocean_pv.nc';
 enname = 'energy-avg-x.mat';
 lname  = 'length_scales_u.mat';
 
+volume = {};
+
 % First calculate diagnostics if not already done so
 if ~exist(enname,'file'), roms_energy(fname,[],4,1,0); end % average along x
 if ~exist(pvname,'file'), roms_pv(fname,[]); end
@@ -78,7 +80,6 @@ hold on
 plot(tpv./86400,qfluxr,'r');
 legend('Left','Right','Location','best');
 
-
 %% find angle of isotherms + most unstable SI mode growth rate + calculate Ri
 clear slope mean_slope sigma M2grad N2grad
 
@@ -142,81 +143,105 @@ end
 % problems 
 %   - gradient in PV means right side has lesser growth rate.
 %   - should I calculate growth rates for each region separately and then calculate width?
+
+% calculate theoretical wavelengths and growth rates
+
 clear all
+
+%dir = 'E:\Work\instability\ROMS\si_part\edge\2D\';
+%dirs = {'run01','run02','run03','run04','run04_2','run05','run06','run07'};
+%dirs = {'run02'};
+%plotx = [01 02 03 04 04.2 05 06 07];
 fname = 'ocean_his.nc';
 
-if ~exist('u','var')
+plot_flag = 0;
+redo_en = 0;
+
+%for ii=1:length(dirs)
+%    cd([dir dirs{ii}]);
     u = double(ncread(fname,'u',[1 1 1 1],[Inf Inf Inf Inf]));
-end
 
-roms_grid = roms_get_grid(fname,fname,0,1);
-time = ncread(fname,'ocean_time');
-j = 3;
+    roms_grid = roms_get_grid(fname,fname,0,1);
+    time = ncread(fname,'ocean_time');
+    j = 3;
 
-if ~exist('energy-avg-x.mat','file'), roms_energy(fname,[],4,1,0); end
+    if ~exist('energy-avg-x.mat','file') || redo_en == 1, roms_energy(fname,[],4,1,0); end
 
-load energy-avg-x.mat
-tAmax = time_A(find(A == max(A)));
-tind = find_approx(time,tAmax,1);
+    load energy-avg-x.mat
 
-% need to do better averaging
-um   = mean(u(:,j,:,:),1);
-up = squeeze(bsxfun(@minus,u(:,j,:,:),um));
+    % I AM SMOOTHING THE GROWTH RATE CURVE HERE
+    [peaks,locs] = findpeaks(conv(A,[1 1]/2,'valid'));
+    %tAmax = time_A(find(A == max(A)));
+    tAmax = time_A(locs(1));
+     tind = find_approx(time,tAmax,1);
 
-data = up(:,20,tind);
-thresh = 0.3;
+    % need to do better averaging
+    um   = mean(u(:,j,:,:),1);
+    up = squeeze(bsxfun(@minus,u(:,j,:,:),um));
+    data = up(:,20,tind);
+    thresh = 0.5;
 
-xu = roms_grid.x_u(1,:);
-dx = mean(diff(xu));
-nx = length(xu);
-range = {[1:floor(nx/2)], [floor(nx/2)+1:nx]};
+    xu = roms_grid.x_u(1,:);
+    dx = mean(diff(xu));
+    nx = length(xu);
+    range = {[1:floor(nx/2)], [floor(nx/2)+1:nx]};
 
-[wave,period,scale,coi] = wavelet(data,dx,1);
-enwave = abs(wave).^2;
+    [wave,period,scale,coi] = wavelet(data,dx,1);
+    enwave = abs(wave).^2;
 
-% plot energy 'spectrum'
-h1 = figure;
-pcolor(xu/1000,log(period),enwave); shading interp
-hold on; revz
-plot(xu/1000,log(coi),'k','LineWidth',1.5);
-xlabel('X (km)'); ylabel('Wavenumber (m^{-1})');
+    % plot energy 'spectrum'
+    if plot_flag
+        h1 = figure;
+        pcolor(xu/1000,log(period),enwave); shading interp
+        hold on; revz
+        plot(xu/1000,log(coi),'k','LineWidth',1.5);
+        xlabel('X (km)'); ylabel('log(Wavenumber)');
 
-% plot u field
-mod_movie(fname,'u',[tind tind],{},'y','mid','pcolor;shading interp;liney(-50)');
-hold on;
-h2 = gcf;
+        % plot u field
+        mod_movie(fname,'u',[tind tind],{},'y','mid','pcolor;shading interp;liney(-50)');
+        hold on;
+        h2 = gcf;
+    end
 
-for i=1:2
-      rr = range{i};
-     dat = data(rr);
-    xdat =   xu(rr);
-    
-    % find maxima
-         m = enwave(:,rr);
-    maxind = find(m == max(m(:)));
-     [a,b] = ind2sub(size(m),maxind);
-    
-    % calculate width
-       m = abs(wave(a,rr)).^2;
-     ind = find(m > thresh*max(m));    
-    w(i) = (ind(end)-ind(1))*dx;
-    l(i) = period(a);
-    
-    % put on 
-    figure(h1)
-    linex((rr(1)+ind(1))*dx/1000,''); linex((rr(1)+ind(end))*dx/1000,'');
-    liney(log(period(a)));
-    
-    figure(h2)
-    linex((rr(1)+ind(1))*dx/1000,''); linex((rr(1)+ind(end))*dx/1000,'');
-    liney(log(period(a)));
-end
+    for i=1:2
+          clear m;
+          rr = range{i};
+         dat = data(rr);
+        xdat =   xu(rr);
 
-figure(h1); title(['Width = ' num2str(w./1000) ' km']);
-figure(h2); title(['Width = ' num2str(w./1000) ' km']);
+        % find maxima & calculate width
+           m = trapz(enwave(:,rr),1);
+         ind = find(m > thresh*max(m));    
+        w(i) = (ind(end)-ind(1))*dx;
 
-% w1 = (ind(loc)-ind(1))*dx
-% w2 = (ind(end) - ind(loc+1))*dx
+        % calculate wavelength
+             m = enwave(:,rr);
+        maxind = find(m == max(m(:)));
+         [a,b] = ind2sub(size(m),maxind);
+          l(i) = period(a);
+
+        % put on 
+        if plot_flag
+            figure(h1)
+            linex((rr(1)+ind(1))*dx/1000,''); linex((rr(1)+ind(end))*dx/1000,'');
+            liney(log(period(a)));
+
+            figure(h2)
+            linex((rr(1)+ind(1))*dx/1000,''); linex((rr(1)+ind(end))*dx/1000,'');
+            liney(log(period(a)));
+        end
+    end
+
+    if plot_flag
+        figure(h1); title(['Width = ' num2str(w./1000) ' km']);
+        figure(h2); title(['Width = ' num2str(w./1000) ' km']);
+    end
+    w
+    l
+    % save data
+ %   wsi(ii,:) = w;
+%    lsi(ii,:) = l;
+%end
 
 %% compare with 2D run
 dir = 'E:\Work\instability\ROMS\si_part\edge\';
@@ -288,8 +313,6 @@ subplot(211)
 plot(tA3d/86400,A3d*86400,'k','LineWidth',1.5); hold on
 legend('2D','3D','Location','Best');
 ylabel('Growth Rate (d^{-1})');
-
-
 
 %% old scaling
 % N2 = 1e-5;
