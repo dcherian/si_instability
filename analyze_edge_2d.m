@@ -1,9 +1,18 @@
+% Things to do
+%   - calculate growth rates for each half separately
+%   - better averaging for mean
+%   - calculate width at a bunch of depths and average
+%   - negative N2!!!
+
+% growth rate corresponding to particular wavelength
+
 clear all
 
 dir = 'E:\Work\instability\ROMS\si_part\edge\2D\';
-dirs = {'run01','run02','run03','run04','run05','run06','run07'};
+%dirs = {'run01','run02','run03','run04','run05','run06','run07'};
 %dirs = {'run02'};
-runx = [01 02 03 04 04.2 05 06 07];
+dirs = {'run01','run02','run03','run05','run06','run08'}; % 4 and 7 are outliers (PVmin / PVmid > 1.1 - greater wavelength too)
+runx = [01 02 03 05 06 08];
 fname = 'ocean_his.nc';
 
 plot_flag = 0;
@@ -29,6 +38,7 @@ for ii=1:length(dirs)
     zmid = ceil(size(roms_grid.z_r  ,1)/2);
     
     j = ymid;
+    yind = ymid;
     
     temp = squeeze(double(ncread(fname,'temp',[1 1 1 1],[Inf Inf Inf Inf])));
     v = squeeze(double(ncread(fname,'v',[1 1 1 1],[Inf Inf Inf Inf])));
@@ -48,10 +58,15 @@ for ii=1:length(dirs)
      tind = find_approx(time,tAmax,1);
 
     % NEED TO DO BETTER AVERAGING? ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    % do this calculation at a bunch of depths and average? <-- better estimate of the width
     um   = mean(u(:,j,:,:),1);
     up = squeeze(bsxfun(@minus,u(:,j,:,:),um));
-    data = up(:,20,tind);
+    data = up(:,zmid,tind);
     thresh = 0.5;
+    
+    % Calculate gradients
+    M2 = g*misc.Tcoef*avg1(squeeze(diff(temp(:,yind,:,tind),1,1)),2)./dx;
+    N2 = g*misc.Tcoef*avg1(bsxfun(@rdivide,diff(squeeze(temp(:,yind,:,tind)),1,2),permute(dz,[3 1 2])),1);
 
     xu = roms_grid.x_u(1,:);
     dx = mean(diff(xu));
@@ -109,11 +124,28 @@ for ii=1:length(dirs)
         xpvl = find_approx(xpv,edgeloc(1)*1000,1);
         xpvr = find_approx(xpv,edgeloc(2)*1000,1);
         pvedge = pv(xpvl:xpvr,:);
-        meanpv = max(pvedge(:));
+        meanpv = mean(pvedge(:)); max(pvedge(:)./pv(xmid,zmid));
         
         plotpv(ii,i) = meanpv;
         
-        % find 
+        % find mean slope in edge effects region THIS IS NOISY.
+        slope = M2(xpvl:xpvr,:)./N2(xpvl:xpvr,:);
+        plotsl(ii,i) = median(slope(:));
+        
+        % find Ri in edge effects region
+         Ri = N2(xpvl:xpvr,:)./(M2(xpvl:xpvr,:)).^2 * f0^2;
+        Ri0 =  median(Ri(Ri>0));
+        plotri(ii,i) = Ri0;
+        
+        % calculate theoretical wavelength
+        % first velocity scale
+        xvl = find_approx(roms_grid.x_v(1,:),edgeloc(1)*1000,1);
+        xvr = find_approx(roms_grid.x_v(1,:),edgeloc(2)*1000,1);
+        v0 = abs(mean(v(xvl:xvr,ymid,zmid,tind)));
+        l0(i) = 2*pi / (pi/sqrt(1-Ri0) * f0/v0);
+        
+        % decorrelation length scale
+        ldc(ii,i) = length_scale(v(xvl:xvr,ymid,:,tind),1,dx)*4;
         
 %         % check pv 
 %         figure
@@ -140,31 +172,41 @@ for ii=1:length(dirs)
     end
     
     % save data
-    wsi(ii,:) = w;
-    lsi(ii,:) = l;
+     wsi(ii,:) = w;
+     lsi(ii,:) = l;
+    lsi0(ii,:) = l0; % theoretical
 end
 
-% plots
-plotx = abs(plotpv);
+%% plots
+plotx = (abs(plotri));
 figure
-% subplot(311)
-% plot(runx,lsi(:,1)/1000,'r*'); hold on
-% plot(runx,lsi(:,2)/1000,'b*');
-% legend('Left','Right');
-% ylabel('Wavelength (km)');
-% subplot(312)
-% plot(runx,wsi(:,1)/1000,'r*'); hold on
-% plot(runx,wsi(:,2)/1000,'b*'); hold on
-% ylabel('Width (km)');
-% subplot(313)
-% plot(runx,wsi(:,1)./lsi(:,1),'r*'); hold on
-% plot(runx,wsi(:,2)./lsi(:,2),'b*'); hold on
-% ylabel('No. of wavelengths');
-% ylim([1 3]);
+subplot(311)
+plot(runx,lsi(:,1)/1000,'r*'); hold on
+plot(runx,lsi(:,2)/1000,'b*');
+plot(runx,lsi0(:,1)/1000,'ro');
+plot(runx,lsi0(:,2)/1000,'bo');
+plot(runx,ldc(:,1)/1000,'rx');
+plot(runx,ldc(:,2)/1000,'bx');
+legend('Left','Right');
+ylabel('Wavelength (km)');
+subplot(312)
+plot(runx,wsi(:,1)/1000,'r*'); hold on
+plot(runx,wsi(:,2)/1000,'b*'); hold on
+ylabel('Width (km)');
+subplot(313)
+plot(runx,wsi(:,1)./lsi(:,1),'r*'); hold on
+plot(runx,wsi(:,2)./lsi(:,2),'b*'); hold on
+ylabel('No. of wavelengths');
+ylim([1 3]);
 
+figure
 subplot(311)
 plot(plotx(:,1),lsi(:,1)/1000,'r*'); hold on
 plot(plotx(:,2),lsi(:,2)/1000,'b*');
+plot(plotx(:,1),lsi0(:,1)/1000,'ro');
+plot(plotx(:,2),lsi0(:,2)/1000,'bo');
+plot(plotx(:,1),ldc(:,1)/1000,'rx');
+plot(plotx(:,2),ldc(:,2)/1000,'bx');
 legend('Left','Right');
 ylabel('Wavelength (km)');
 subplot(312)

@@ -154,7 +154,7 @@ clear all
 %plotx = [01 02 03 04 04.2 05 06 07];
 fname = 'ocean_his.nc';
 
-plot_flag = 0;
+plot_flag = 1;
 redo_en = 0;
 
 %for ii=1:length(dirs)
@@ -315,18 +315,19 @@ legend('2D','3D','Location','Best');
 ylabel('Growth Rate (d^{-1})');
 
 %% old scaling
-% N2 = 1e-5;
-% vz = 4e-3;
-% v0 = 0.4;
-% f  = 1e-4;
-% nu = 1e-4; % 3e-2
-% 
-% M2 = f*vz;
-% Ri = N2/vz^2;
-% 
-% sigma = f*(1/Ri - 1)^0.5 * 86400
-% L_stone = 2*pi / (pi/sqrt(1-Ri) * f/v0)
-% L_raf = 2*pi/sqrt(f/nu*sqrt(1/Ri - 1)/(1 + N2^2/M2^2))
+N2 = 1e-5;
+vz = 4e-3;
+v0 = 0.2;
+f  = 1e-4;
+nu = 1e-4; % 3e-2
+
+M2 = f*vz;
+Ri = N2/vz^2;
+
+sigma = f*(1/Ri - 1)^0.5 * 86400
+sigma0 = sqrt(M2^2./N2 - f^2) * 86400
+L_stone = 2*pi / (pi/sqrt(1-Ri) * f/v0)
+%L_raf = 2*pi/sqrt(f/nu*sqrt(1/Ri - 1)/(1 + N2^2/M2^2))
 
 % observed - 2.5km in x - works for mid level vleocity v0 = 0.2 m/s
 
