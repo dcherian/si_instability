@@ -165,7 +165,7 @@ redo_en = 0;
     time = ncread(fname,'ocean_time');
     j = 3;
 
-    if ~exist('energy-avg-x.mat','file') || redo_en == 1, roms_energy(fname,[],4,1,0); end
+    if ~exist('energy-avg-x.mat','file') || redo_en == 1, roms_energy(fname,[],{},4,1,0); end
 
     load energy-avg-x.mat
 

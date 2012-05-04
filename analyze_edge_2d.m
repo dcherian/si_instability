@@ -10,9 +10,9 @@ clear all
 
 dir = 'E:\Work\instability\ROMS\si_part\edge\2D\';
 %dirs = {'run01','run02','run03','run04','run05','run06','run07'};
-%dirs = {'run08'};
-dirs = {'run01','run02','run03','run05','run06','run08','run09'}; % 4 and 7 are outliers (PVmin / PVmid > 1.1 - greater wavelength too)
-runx = [01 02 03 05 06 08 09];
+
+dirs = {'run01','run02','run03','run05','run06','run08','run09','run10','run11','run12','run13','run14'}; % 4 and 7 are outliers (PVmin / PVmid > 1.1 - greater wavelength too)
+runx = [01 02 03 05 06 08 09 10 11 12 13 14];
 fname = 'ocean_his.nc';
 volume = {};
 
@@ -21,6 +21,8 @@ ennames = {'energy-left.mat','energy-right.mat'};
 plot_flag = 0;
 redo_en = 0;
 redo_pv = 0;
+
+%dirs = {'run13','run14'}; plot_flag = 1;
 
 thresh = 0.5; % threshold for energy
 
@@ -87,7 +89,14 @@ for ii=1:length(dirs)
         else
             tAmax = time_A(locs(1));
         end
-         tind = find_approx(time,tAmax,1);
+        tind = find_approx(time,tAmax,1);
+        % verify
+        if plot_flag
+            figure;
+            plot(time_A./86400, A*86400);
+            linex(tAmax./86400);
+            title(['Growth Rate' ennames{i}]);
+        end
 
         %%%%%%%%%%%%%% Wavelet stuff
         % NEED TO DO BETTER AVERAGING? ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -140,9 +149,9 @@ for ii=1:length(dirs)
         
         plotpv(ii,i) = meanpv;
         
-        %%%%% Calculate gradients
-        M2 = g*misc.Tcoef*avg1(squeeze(diff(temp(rr(1):rr(end),yind,:,tind),1,1)),2)./dx;
-        N2 = g*misc.Tcoef*avg1(bsxfun(@rdivide,diff(squeeze(temp(rr(1):rr(end),yind,:,tind)),1,2),permute(dz,[3 1 2])),1);
+        %%%%% Calculate INITIAL gradients in the edge effects region.
+        M2 = g*misc.Tcoef*avg1(squeeze(diff(temp(rr(1):rr(end),yind,:,1),1,1)),2)./dx;
+        N2 = g*misc.Tcoef*avg1(bsxfun(@rdivide,diff(squeeze(temp(rr(1):rr(end),yind,:,1)),1,2),permute(dz,[3 1 2])),1);
         
         %%%% find mean slope in edge effects region ||||||  THIS IS NOISY.
         slope = M2(xpvl:xpvr,:)./N2(xpvl:xpvr,:);
@@ -179,15 +188,13 @@ for ii=1:length(dirs)
             figure(h2) % on u plot
             linex(edgeloc,''); % mark width
             linex([npvl npvr cpvl cpvr],' ','w');% mark negative + constant pv region
+            
+            figure(h1); title(['Width = ' num2str(w./1000) ' km']);
+            figure(h2); title(['Width = ' num2str(w./1000) ' km']);
             pause
         end
     end
-
-    if plot_flag
-        figure(h1); title(['Width = ' num2str(w./1000) ' km']);
-        figure(h2); title(['Width = ' num2str(w./1000) ' km']);
-    end
-    
+        
     % save data
      wsi(ii,:) = w;
      lsi(ii,:) = l;
@@ -196,6 +203,8 @@ end
 
 %% plots
 plotx = (abs(plotri));
+titlex = 'Ri';
+
 figure
 subplot(311)
 plot(runx,lsi(:,1)/1000,'r*'); hold on
@@ -234,4 +243,9 @@ subplot(313)
 plot(plotx(:,1),wsi(:,1)./lsi(:,1),'r*'); hold on
 plot(plotx(:,2),wsi(:,2)./lsi(:,2),'b*'); hold on
 ylabel('No. of wavelengths');
-ylim([1 3]);
+xlabel(titlex);
+%ylim([1 3]);
+
+% print table
+disp('     lsi_l     lsi_r     wsi_l     wsi_r     ri_l      ri_r      run');
+disp( [lsi wsi plotri*1e4 runx'*1e4]/1e4)
