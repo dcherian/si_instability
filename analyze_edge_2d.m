@@ -11,8 +11,8 @@ clear all
 dir = 'E:\Work\instability\ROMS\si_part\edge\2D\';
 %dirs = {'run01','run02','run03','run04','run05','run06','run07'};
 
-dirs = {'run01','run02','run03','run05','run06','run08','run09','run10','run11','run12','run13','run14'}; % 4 and 7 are outliers (PVmin / PVmid > 1.1 - greater wavelength too)
-runx = [01 02 03 05 06 08 09 10 11 12 13 14];
+dirs = {'run01','run02','run03','run05','run06','run08','run09','run10_2','run11','run12','run13','run14_2','run15'}; % 4 and 7 are outliers (PVmin / PVmid > 1.1 - greater wavelength too)
+runx = [01 02 03 05 06 08 09 10.2 11 12 13 14.2 15];
 fname = 'ocean_his.nc';
 volume = {};
 
@@ -22,7 +22,7 @@ plot_flag = 0;
 redo_en = 0;
 redo_pv = 0;
 
-%dirs = {'run13','run14'}; plot_flag = 1;
+%dirs = {'run15'}; plot_flag = 1;
 
 thresh = 0.5; % threshold for energy
 
@@ -41,8 +41,8 @@ for ii=1:length(dirs)
     dz = squeeze(diff(roms_grid.z_r(:,1,1)));
     
     xu = roms_grid.x_u(1,:);
+    xv = roms_grid.x_v(1,:);
     nx = length(xu);
-    range = {[1:floor(nx/2)], [floor(nx/2)+1:nx]};
 
     xmid = ceil(size(roms_grid.x_rho,2)/2);
     ymid = ceil(size(roms_grid.y_rho,1)/2);
@@ -53,25 +53,25 @@ for ii=1:length(dirs)
     
     % read data
     temp = squeeze(double(ncread(fname,'temp',[1 1 1 1],[Inf Inf Inf Inf])));
-    v = squeeze(double(ncread(fname,'v',[1 1 1 1],[Inf Inf Inf Inf])));
-    u = squeeze(double(ncread(fname,'u',[1 1 1 1],[Inf Inf Inf Inf])));
+       v = squeeze(double(ncread(fname,'v',[1 1 1 1],[Inf Inf Inf Inf])));
+       u = squeeze(double(ncread(fname,'u',[1 1 1 1],[Inf Inf Inf Inf])));
     temp_mid = squeeze(double(ncread(fname,'temp',[1 ymid 1 1],[Inf 1 Inf 1])));
     
     if ~exist('ocean_pv.nc','file') || redo_pv == 1, roms_pv(fname,[1 1]); end   
     pv = squeeze(ncread('ocean_pv.nc','pv',[1 ymid 1 1],[Inf 1 Inf 1]));
     xpv = ncread('ocean_pv.nc','x_pv');
     
-    %%%%% find negative pv region
-    pvind = find(pv(:,zmid) < 0);
-     npvl = xpv(pvind(1))/1000; % negative pv left
-     npvr = xpv(pvind(end))/1000; % and right
-    pvind = find(pv(:,zmid) ==  pv(xmid,zmid));
-     cpvl = xpv(pvind(1))/1000; % constant pv left
-     cpvr = xpv(pvind(end))/1000; % and right
+    %%%%% find different pv & v regions
+    [npvl cpvl cpvr npvr] = find_region(xpv,pv);
+    [nvl  cvl   cvr  nvr] = find_region(xv,squeeze(v(:,ymid,:,1)));
+     % x-length scale for velocity gradient (Rossby number calculations)
+     Lvx = [cvl-nvl nvr-cvr];
+     range_vx = {[find(xv == nvl):find(xv == cvl)], [find(xv == cvr):find(xv == nvr)]};
+     range_nx = {[1:floor(nx/2)], [floor(nx/2)+1:nx]};
     
     %%%%%%%%%%%%%%%%%%% first left, then right
     for i=1:2
-        rr = range{i};
+        rr = range_vx{i};
         volume = {'x' rr(1) rr(end)};
         % calculate / load energy diagnostics for current half
         if ~exist(ennames{i},'file') || redo_en == 1
@@ -124,7 +124,7 @@ for ii=1:length(dirs)
 
         %%%%% figure out width / wavelength of edge effects region
           clear m;
-          
+          rr = range_nx{i}; % search for width in appropriate half of the domain
          dat = data(rr);
         xdat =   xu(rr);
 
@@ -150,17 +150,23 @@ for ii=1:length(dirs)
         plotpv(ii,i) = meanpv;
         
         %%%%% Calculate INITIAL gradients in the edge effects region.
-        M2 = g*misc.Tcoef*avg1(squeeze(diff(temp(rr(1):rr(end),yind,:,1),1,1)),2)./dx;
-        N2 = g*misc.Tcoef*avg1(bsxfun(@rdivide,diff(squeeze(temp(rr(1):rr(end),yind,:,1)),1,2),permute(dz,[3 1 2])),1);
+        tindex = 1; 
+        M2 = g*misc.Tcoef*avg1(squeeze(diff(temp(rr(1):rr(end),yind,:,1),1,tindex)),2)./dx;
+        N2 = g*misc.Tcoef*avg1(bsxfun(@rdivide,diff(squeeze(temp(rr(1):rr(end),yind,:,tindex)),1,2),permute(dz,[3 1 2])),1);
         
         %%%% find mean slope in edge effects region ||||||  THIS IS NOISY.
-        slope = M2(xpvl:xpvr,:)./N2(xpvl:xpvr,:);
-        plotsl(ii,i) = median(slope(:));
+%         slope = M2(xpvl:xpvr,:)./N2(xpvl:xpvr,:);
+%         plotsl(ii,i) = median(slope(:));
         
         %%%%% find Ri in edge effects region
          Ri = N2(xpvl:xpvr,:)./(M2(xpvl:xpvr,:)).^2 * f0^2;
         Ri0 =  median(Ri(Ri>0));
         plotri(ii,i) = Ri0;
+        
+        %%%%% Calculate Rossby number
+        v0 = max(abs(v(:,:,:,1)));
+        v0 = max(v0(:));
+        plotro(ii,i) = v0/f0/Lvx(i);
         
         %%%%% calculate theoretical wavelength
         % first velocity scale
@@ -187,11 +193,11 @@ for ii=1:length(dirs)
 
             figure(h2) % on u plot
             linex(edgeloc,''); % mark width
-            linex([npvl npvr cpvl cpvr],' ','w');% mark negative + constant pv region
+            linex([npvl npvr cpvl cpvr]/1000,' ','w');% mark negative + constant pv region
             
             figure(h1); title(['Width = ' num2str(w./1000) ' km']);
             figure(h2); title(['Width = ' num2str(w./1000) ' km']);
-            pause
+            if i==1, pause; end
         end
     end
         
@@ -215,6 +221,7 @@ plot(runx,ldc(:,1)/1000,'rx');
 plot(runx,ldc(:,2)/1000,'bx');
 legend('Left','Right');
 ylabel('Wavelength (km)');
+title('Runs in order');
 subplot(312)
 plot(runx,wsi(:,1)/1000,'r*'); hold on
 plot(runx,wsi(:,2)/1000,'b*'); hold on
@@ -223,7 +230,7 @@ subplot(313)
 plot(runx,wsi(:,1)./lsi(:,1),'r*'); hold on
 plot(runx,wsi(:,2)./lsi(:,2),'b*'); hold on
 ylabel('No. of wavelengths');
-ylim([1 3]);
+%ylim([1 3]);
 
 figure
 subplot(311)
@@ -235,6 +242,7 @@ plot(plotx(:,1),ldc(:,1)/1000,'rx');
 plot(plotx(:,2),ldc(:,2)/1000,'bx');
 legend('Left','Right');
 ylabel('Wavelength (km)');
+title('Richardson Number');
 subplot(312)
 plot(plotx(:,1),wsi(:,1)/1000,'r*'); hold on
 plot(plotx(:,2),wsi(:,2)/1000,'b*'); hold on
@@ -245,6 +253,30 @@ plot(plotx(:,2),wsi(:,2)./lsi(:,2),'b*'); hold on
 ylabel('No. of wavelengths');
 xlabel(titlex);
 %ylim([1 3]);
+
+plotx = (abs(plotro));
+titlex = 'Ro';
+
+figure
+subplot(311)
+plot(plotx(:,1),lsi(:,1)/1000,'r*'); hold on
+plot(plotx(:,2),lsi(:,2)/1000,'b*');
+plot(plotx(:,1),lsi0(:,1)/1000,'ro');
+plot(plotx(:,2),lsi0(:,2)/1000,'bo');
+plot(plotx(:,1),ldc(:,1)/1000,'rx');
+plot(plotx(:,2),ldc(:,2)/1000,'bx');
+legend('Left','Right');
+ylabel('Wavelength (km)');
+title('Rossby Number');
+subplot(312)
+plot(plotx(:,1),wsi(:,1)/1000,'r*'); hold on
+plot(plotx(:,2),wsi(:,2)/1000,'b*'); hold on
+ylabel('Width (km)');
+subplot(313)
+plot(plotx(:,1),wsi(:,1)./lsi(:,1),'r*'); hold on
+plot(plotx(:,2),wsi(:,2)./lsi(:,2),'b*'); hold on
+ylabel('No. of wavelengths');
+xlabel(titlex);
 
 % print table
 disp('     lsi_l     lsi_r     wsi_l     wsi_r     ri_l      ri_r      run');

@@ -245,8 +245,11 @@ redo_en = 0;
 
 %% compare with 2D run
 dir = 'E:\Work\instability\ROMS\si_part\edge\';
-dir2D = [dir 'run150_lsi_2d1.5\'];
+dir2D = [dir '2D\runaa1.5\'];
 dir3D = [dir 'run150_lsi_redo2\'];
+
+dir2D = [dir '2D\runaa1.3\'];
+dir3D = [dir 'run150_lsi_aa1.3\'];
 
 file2d = [dir2D 'ocean_his.nc'];
 file3d = [dir3D 'ocean_his.nc'];
@@ -268,10 +271,10 @@ volume = {'x' '12000' '32000'};
 % 2d
 cd(dir2D);
 if ~exist('length_scales_u.mat')
-    roms_length_scales(file2D,'u',[],volume);
+    roms_length_scales(file2d,'u',[],volume);
 end
 if ~exist('energy-avg-x.mat')
-    roms_energy(file3D,[],4,1,0);
+    roms_energy(file3d,[],{},4,1,0);
 end
 
 load length_scales_u.mat
