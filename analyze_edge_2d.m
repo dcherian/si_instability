@@ -11,8 +11,8 @@ clear all
 dir = 'E:\Work\instability\ROMS\si_part\edge\2D\';
 %dirs = {'run01','run02','run03','run04','run05','run06','run07'};
 
-dirs = {'run01','run02','run03','run05','run06','run08','run09','run10_2','run11','run12','run13','run14_2','run15'}; % 4 and 7 are outliers (PVmin / PVmid > 1.1 - greater wavelength too)
-runx = [01 02 03 05 06 08 09 10.2 11 12 13 14.2 15];
+dirs = {'run01','run02','run03','run05','run06','run08','run09','run10_2','run11','run12_2','run13_2','run14_2','run15'}; % 4 and 7 are outliers (PVmin / PVmid > 1.1 - greater wavelength too)
+runx = [01 02 03 05 06 08 09 10.2 11 12.2 13.2 14.2 15];
 fname = 'ocean_his.nc';
 volume = {};
 
@@ -22,7 +22,7 @@ plot_flag = 0;
 redo_en = 0;
 redo_pv = 0;
 
-%dirs = {'run15'}; plot_flag = 1;
+%dirs = {'run12_2','run13_2'}; plot_flag = 1;
 
 thresh = 0.5; % threshold for energy
 
@@ -84,11 +84,11 @@ for ii=1:length(dirs)
         % I AM SMOOTHING THE GROWTH RATE CURVE HERE
         %[peaks,locs] = findpeaks(conv(A./max(A),[1 1]/2,'valid'),'threshold',0.01);
         [peaks,locs] = extrema(conv(A./max(A),[1 1]/2,'valid'));
-        if locs(2) < locs(1) && peaks(2)/peaks(1) >= 0.8
-            tAmax = time_A(locs(2));
-        else
+        %if locs(2) < locs(1) && peaks(2)/peaks(1) >= 0.8
+        %    tAmax = time_A(locs(2));
+        %else
             tAmax = time_A(locs(1));
-        end
+        %end
         tind = find_approx(time,tAmax,1);
         % verify
         if plot_flag
@@ -172,8 +172,12 @@ for ii=1:length(dirs)
         % first velocity scale
         xvl = find_approx(roms_grid.x_v(1,:),edgeloc(1)*1000,1);
         xvr = find_approx(roms_grid.x_v(1,:),edgeloc(2)*1000,1);
-        v0 = abs(mean(v(xvl:xvr,ymid,zmid,tind)));
+        %v0 = abs(mean(v(xvl:xvr,ymid,zmid,tind)));
         l0(i) = 2*pi / (pi/sqrt(1-Ri0) * f0/v0);
+        
+        %%%%% Theoretical and inferred growth rate
+        Amax(ii,i) = peaks(1);
+          A0(ii,i) = sqrt(1/Ri0-1)*f0;
         
         %%%%% decorrelation length scale
         ldc(ii,i) = length_scale(v(xvl:xvr,ymid,:,tind),1,dx)*4;
@@ -217,9 +221,9 @@ plot(runx,lsi(:,1)/1000,'r*'); hold on
 plot(runx,lsi(:,2)/1000,'b*');
 plot(runx,lsi0(:,1)/1000,'ro');
 plot(runx,lsi0(:,2)/1000,'bo');
-plot(runx,ldc(:,1)/1000,'rx');
-plot(runx,ldc(:,2)/1000,'bx');
-legend('Left','Right');
+%plot(runx,ldc(:,1)/1000,'rx');
+%plot(runx,ldc(:,2)/1000,'bx');
+legend('Left','Right','Location','Best');
 ylabel('Wavelength (km)');
 title('Runs in order');
 subplot(312)
@@ -238,9 +242,9 @@ plot(plotx(:,1),lsi(:,1)/1000,'r*'); hold on
 plot(plotx(:,2),lsi(:,2)/1000,'b*');
 plot(plotx(:,1),lsi0(:,1)/1000,'ro');
 plot(plotx(:,2),lsi0(:,2)/1000,'bo');
-plot(plotx(:,1),ldc(:,1)/1000,'rx');
-plot(plotx(:,2),ldc(:,2)/1000,'bx');
-legend('Left','Right');
+%plot(plotx(:,1),ldc(:,1)/1000,'rx');
+%plot(plotx(:,2),ldc(:,2)/1000,'bx');
+legend('Left','Right','Location','Best');
 ylabel('Wavelength (km)');
 title('Richardson Number');
 subplot(312)
@@ -263,9 +267,9 @@ plot(plotx(:,1),lsi(:,1)/1000,'r*'); hold on
 plot(plotx(:,2),lsi(:,2)/1000,'b*');
 plot(plotx(:,1),lsi0(:,1)/1000,'ro');
 plot(plotx(:,2),lsi0(:,2)/1000,'bo');
-plot(plotx(:,1),ldc(:,1)/1000,'rx');
-plot(plotx(:,2),ldc(:,2)/1000,'bx');
-legend('Left','Right');
+%plot(plotx(:,1),ldc(:,1)/1000,'rx');
+%plot(plotx(:,2),ldc(:,2)/1000,'bx');
+legend('Left','Right','Location','Best');
 ylabel('Wavelength (km)');
 title('Rossby Number');
 subplot(312)
@@ -279,5 +283,11 @@ ylabel('No. of wavelengths');
 xlabel(titlex);
 
 % print table
-disp('     lsi_l     lsi_r     wsi_l     wsi_r     ri_l      ri_r      run');
-disp( [lsi wsi plotri*1e4 runx'*1e4]/1e4)
+disp('     lsi_l     lsi_r     wsi_l     wsi_r     ri_l      ri_r      ro_l       ro_r      run');
+disp( [lsi wsi plotri*1e4 plotro*1e4 runx'*1e4]/1e4)
+
+%% 3d
+figure
+plot3(plotro(:,1),plotri(:,1),wsi(:,1)/1000,'r*'); hold on
+plot3(plotro(:,2),plotri(:,1),wsi(:,2)/1000,'b*');
+xlabel('Ro'); ylabel('Ri'),zlabel('wsi');
