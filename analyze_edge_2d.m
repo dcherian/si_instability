@@ -10,9 +10,9 @@ clear all
 
 dir = 'E:\Work\instability\ROMS\si_part\edge\2D\';
 %dirs = {'run01','run02','run03','run04','run05','run06','run07'};
-
-dirs = {'run01','run02','run03','run05','run06','run08','run09','run10_2','run11','run12_2','run13_2','run14_2','run15'}; % 4 and 7 are outliers (PVmin / PVmid > 1.1 - greater wavelength too)
-runx = [01 02 03 05 06 08 09 10.2 11 12.2 13.2 14.2 15];
+dirs = {'run01','run02','run03','run04','run05','run06','run07','run08','run09','run10_2','run11','run12_2','run13_2','run14_2','run15', ...
+        'run16','run17','run18','run19','run21','run23','run24'}; % 4 and 7 are outliers (PVmin / PVmid > 1.1 - greater wavelength too)
+runx = [01 02 03 04 05 06 07 08 09 10.2 11 12.2 13.2 14.2 15 16 17 18 19 21 23 24];
 fname = 'ocean_his.nc';
 volume = {};
 
@@ -22,7 +22,7 @@ plot_flag = 0;
 redo_en = 0;
 redo_pv = 0;
 
-%dirs = {'run12_2','run13_2'}; plot_flag = 1;
+%dirs = {'run24'}; runx = [24];plot_flag = 1;
 
 thresh = 0.5; % threshold for energy
 
@@ -73,7 +73,7 @@ for ii=1:length(dirs)
     for i=1:2
         rr = range_vx{i};
         volume = {'x' rr(1) rr(end)};
-        % calculate / load energy diagnostics for current half
+        % calculate / load energy diagnostics for current region rr
         if ~exist(ennames{i},'file') || redo_en == 1
             roms_energy(fname,[],volume,1,1,0); 
             system(['move energy-avg-x.mat ' ennames{i}]);
@@ -84,6 +84,7 @@ for ii=1:length(dirs)
         % I AM SMOOTHING THE GROWTH RATE CURVE HERE
         %[peaks,locs] = findpeaks(conv(A./max(A),[1 1]/2,'valid'),'threshold',0.01);
         [peaks,locs] = extrema(conv(A./max(A),[1 1]/2,'valid'));
+        Amax(ii,i) = peaks(1);
         %if locs(2) < locs(1) && peaks(2)/peaks(1) >= 0.8
         %    tAmax = time_A(locs(2));
         %else
@@ -134,33 +135,42 @@ for ii=1:length(dirs)
         w(i) = (ind(end)-ind(1))*dx;
         edgeloc = [(rr(1)+ind(1))*dx/1000 (rr(1)+ind(end))*dx/1000];
 
-        %%%%% calculate wavelength
+        %%%%% calculate x-wavelength
              m = enwave(:,rr);
         maxind = find(m == max(m(:)));
          [a,b] = ind2sub(size(m),maxind);
-          l(i) = period(a);
-         
+          lx(i) = period(a);
+          
+        %%%%% calculate z-wavelength/wavenumber
+        % first interpolate to regular grid
+        clear m
+        data = up(ceil((ind(1)+ind(end))/2),:,tind);
+        deltaz = 1; % m
+        zin = [roms_grid.z_u(1,1,1):deltaz:roms_grid.z_u(end,1,1)]; % interpolate to this grid.
+        datain = interp1(roms_grid.z_u(:,1,1),data,zin);
+        lz(ii,i) = length_scale(datain,2,deltaz)*4; % in m
+        
         %%%%% find initial mean pv in the edge effects region.
-        xpvrr = xpv(rr(1):rr(end)-1);
-        xpvl = find_approx(xpvrr,edgeloc(1)*1000,1);
-        xpvr = find_approx(xpvrr,edgeloc(2)*1000,1);
-        pvedge = pv(xpvl:xpvr,:);
-        meanpv = mean(pvedge(:)); max(pvedge(:)./pv(xmid,zmid));
+        xpvrr = xpv(rr(1):rr(end)-1); % this is now the current HALF of the domain
+        xpvle = find_approx(xpvrr,edgeloc(1)*1000,1);
+        xpvre = find_approx(xpvrr,edgeloc(2)*1000,1);
+        pvedge = pv(xpvle:xpvre,:);
+        meanpv = mean(pvedge(:)); %max(pvedge(:)./pv(xmid,zmid));
         
         plotpv(ii,i) = meanpv;
         
-        %%%%% Calculate INITIAL gradients in the edge effects region.
+        %%%%% Calculate INITIAL gradients in the current HALF
         tindex = 1; 
-        M2 = g*misc.Tcoef*avg1(squeeze(diff(temp(rr(1):rr(end),yind,:,1),1,tindex)),2)./dx;
+        M2 = g*misc.Tcoef*avg1(                diff(squeeze(temp(rr(1):rr(end),yind,:,tindex)),1,1),2)./dx;
         N2 = g*misc.Tcoef*avg1(bsxfun(@rdivide,diff(squeeze(temp(rr(1):rr(end),yind,:,tindex)),1,2),permute(dz,[3 1 2])),1);
         
-        %%%% find mean slope in edge effects region ||||||  THIS IS NOISY.
-%         slope = M2(xpvl:xpvr,:)./N2(xpvl:xpvr,:);
-%         plotsl(ii,i) = median(slope(:));
+        %%%% find mean slope in EDGE effects region ||||||  THIS IS NOISY.
+         slope = M2(xpvle:xpvre,:)./N2(xpvle:xpvre,:);
+         plotsl(ii,i) = median(slope(:));
         
-        %%%%% find Ri in edge effects region
-         Ri = N2(xpvl:xpvr,:)./(M2(xpvl:xpvr,:)).^2 * f0^2;
-        Ri0 =  median(Ri(Ri>0));
+        %%%%% find Ri in EDGE effects region
+         Ri = N2(xpvle:xpvre,:)./(M2(xpvle:xpvre,:).^2) * f0^2;
+        Ri0 = median(Ri(Ri>0));
         plotri(ii,i) = Ri0;
         
         %%%%% Calculate Rossby number
@@ -177,7 +187,7 @@ for ii=1:length(dirs)
         
         %%%%% Theoretical and inferred growth rate
         Amax(ii,i) = peaks(1);
-          A0(ii,i) = sqrt(1/Ri0-1)*f0;
+          A0(ii,i) = sqrt(1/Ri0-1)*f0*86400;
         
         %%%%% decorrelation length scale
         ldc(ii,i) = length_scale(v(xvl:xvr,ymid,:,tind),1,dx)*4;
@@ -207,7 +217,7 @@ for ii=1:length(dirs)
         
     % save data
      wsi(ii,:) = w;
-     lsi(ii,:) = l;
+     lsi(ii,:) = lx;
     lsi0(ii,:) = l0; % theoretical
 end
 
@@ -287,7 +297,12 @@ disp('     lsi_l     lsi_r     wsi_l     wsi_r     ri_l      ri_r      ro_l     
 disp( [lsi wsi plotri*1e4 plotro*1e4 runx'*1e4]/1e4)
 
 %% 3d
+
+F = TriScatteredInterp(plotro(:,1),plotri(:,1),wsi(:,1));
+[rol,ril] = meshgrid(plotro(:,1),plotri(:,1));
+winterp = F(rol,ril);
+
 figure
-plot3(plotro(:,1),plotri(:,1),wsi(:,1)/1000,'r*'); hold on
-plot3(plotro(:,2),plotri(:,1),wsi(:,2)/1000,'b*');
+plot3(plotro(:,1),plotri(:,1),wsi(:,1)./lsi(:,1),'r*'); hold on
+plot3(plotro(:,2),plotri(:,1),wsi(:,2)./lsi(:,2),  'b*');
 xlabel('Ro'); ylabel('Ri'),zlabel('wsi');

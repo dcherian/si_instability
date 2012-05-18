@@ -136,7 +136,7 @@ for i=2:size(u,4)
     pause;
 end
     
-%% Find width of region with instabilities
+%% Find width of region with instabilities THIS IS OLD CODE
 
 % Find region where symmetric rolls exist
 
@@ -164,8 +164,11 @@ redo_en = 0;
     roms_grid = roms_get_grid(fname,fname,0,1);
     time = ncread(fname,'ocean_time');
     j = 3;
+    flag_half = 0;
+    redo_pv = 0;
+    ymid = 3;
 
-    if ~exist('energy-avg-x.mat','file') || redo_en == 1, roms_energy(fname,[],{},4,1,0); end
+    if ~exist('energy-avg-x.mat','file') || redo_en == 1, roms_energy(fname,[],{},1,1,0); end
 
     load energy-avg-x.mat
 
@@ -184,7 +187,19 @@ redo_en = 0;
     xu = roms_grid.x_u(1,:);
     dx = mean(diff(xu));
     nx = length(xu);
-    range = {[1:floor(nx/2)], [floor(nx/2)+1:nx]};
+    
+    if ~exist('ocean_pv.nc','file') || redo_pv == 1, roms_pv(fname,[1 1]); end   
+    pv = squeeze(ncread('ocean_pv.nc','pv',[1 ymid 1 1],[Inf 1 Inf 1]));
+    xpv = ncread('ocean_pv.nc','x_pv');
+    
+    %%%%% find different pv & v regions
+    [npvl cpvl cpvr npvr] = find_region(xpv,pv);
+    
+    if flag_half == 1
+        range = {[1:floor(nx/2)], [floor(nx/2)+1:nx]};
+    else 
+        range = {[1:nx]};
+    end
 
     [wave,period,scale,coi] = wavelet(data,dx,1);
     enwave = abs(wave).^2;
@@ -203,7 +218,7 @@ redo_en = 0;
         h2 = gcf;
     end
 
-    for i=1:2
+    for i=1:length(range)
           clear m;
           rr = range{i};
          dat = data(rr);
@@ -254,6 +269,8 @@ dir3D = [dir 'run150_lsi_aa1.3\'];
 file2d = [dir2D 'ocean_his.nc'];
 file3d = [dir3D 'ocean_his.nc'];
 
+redo_en = 0;
+
 % add some slab stuff
 % %% movies
 % u2d = ncread(file2D,'u');
@@ -273,8 +290,8 @@ cd(dir2D);
 if ~exist('length_scales_u.mat')
     roms_length_scales(file2d,'u',[],volume);
 end
-if ~exist('energy-avg-x.mat')
-    roms_energy(file3d,[],{},4,1,0);
+if ~exist('energy-avg-x.mat') || redo_en == 1
+    roms_energy(file2d,[],{},1,1,0);
 end
 
 load length_scales_u.mat
@@ -296,8 +313,8 @@ cd(dir3D);
 if ~exist('length_scales_u.mat')
     roms_length_scales(file3d,'u',[],volume);
 end
-if ~exist('energy-avg-x.mat')
-    roms_energy(file3d,[],4,1,0);
+if ~exist('energy-avg-x.mat') || redo_en == 1
+    roms_energy(file3d,[],{},1,1,0);
 end
 
 load length_scales_u.mat
