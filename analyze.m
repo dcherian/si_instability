@@ -263,13 +263,14 @@ dir = 'E:\Work\instability\ROMS\si_part\edge\';
 dir2D = [dir '2D\runaa1.5\'];
 dir3D = [dir 'run150_lsi_redo2\'];
 
-dir2D = [dir '2D\runaa1.3\'];
-dir3D = [dir 'run150_lsi_aa1.3\'];
+dir2D = [dir '3D\run01-2D\'];
+dir3D = [dir '3D\run01\'];
 
 file2d = [dir2D 'ocean_his.nc'];
 file3d = [dir3D 'ocean_his.nc'];
 
 redo_en = 0;
+redo_l = 1;
 
 % add some slab stuff
 % %% movies
@@ -283,15 +284,15 @@ redo_en = 0;
 
 h1 = figure;
 
-volume = {'x' '12000' '32000'};
+volume = {'x' '15000' '55000'};
 
 % 2d
 cd(dir2D);
-if ~exist('length_scales_u.mat')
+if ~exist('length_scales_u.mat') || redo_l == 1
     roms_length_scales(file2d,'u',[],volume);
 end
 if ~exist('energy-avg-x.mat') || redo_en == 1
-    roms_energy(file2d,[],{},1,1,0);
+    roms_energy(file2d,[],{},1,1);
 end
 
 load length_scales_u.mat
@@ -310,11 +311,11 @@ plot(tA2d/86400,A2d*86400,'r','LineWidth',1.5); hold on
 
 % 3d
 cd(dir3D);
-if ~exist('length_scales_u.mat')
+if ~exist('length_scales_u.mat') || redo_l == 1
     roms_length_scales(file3d,'u',[],volume);
 end
 if ~exist('energy-avg-x.mat') || redo_en == 1
-    roms_energy(file3d,[],{},1,1,0);
+    roms_energy(file3d,[],{},1,1);
 end
 
 load length_scales_u.mat
@@ -350,6 +351,166 @@ L_stone = 2*pi / (pi/sqrt(1-Ri) * f/v0)
 %L_raf = 2*pi/sqrt(f/nu*sqrt(1/Ri - 1)/(1 + N2^2/M2^2))
 
 % observed - 2.5km in x - works for mid level vleocity v0 = 0.2 m/s
+
+%% Compare different runs at a single timestep
+
+dir = 'E:\Work\instability\ROMS\si_part\edge\3D';
+runs = {'run01','run01-bfric-1','run01-bfric-2','run01-bfric-3'};
+fname = 'ocean_his.nc';
+file_eny = 'energy-avg-y-mid.mat';
+
+volume = {'x' '30000' '40000'};
+redo_en = 0;
+redo_l = 1;
+
+% add time of max growth rate
+
+for i=1:length(runs)
+    cd([dir '\' runs{i} '\']);
+    file = [dir '\' runs{i} '\' fname];
+    if ~exist(file_eny,'file') | redo_en == 1
+         roms_energy(filehis,[],volume,1,2,'growthrate_u'); 
+         system(['move energy-avg-y.mat ' file_eny]);
+     end
+    misc = roms_load_misc(file);
+    
+    load(file_eny)
+    [peaks,locs] = extrema(conv(A./max(A),[1 1]/2,'valid'));
+    Amax = peaks(1);
+    tAmax = time_A(locs(1));
+    time = ncread(filehis,'ocean_time');
+    tind = find_approx(time,tAmax,1);
+    
+    
+    mod_movie(file,'u',[tind tind],volume,'z','-40','pcolor;shading interp;nocaxis');
+    if i== 1;
+     cbar = caxis;
+    else
+     caxis(cbar);
+    end
+    title([runs{i} ' | rdrg = ' num2str(misc.rdrg) ' | ' num2str(time(tind)./86400) ' days']);   
+end
+
+%% plot energy/growth rate/length scale curves on top of each other
+
+dir = 'E:\Work\instability\ROMS\si_part\edge\3D';
+runsx = {'run01-2D','run01','run01-bfric-1','run01-bfric-2','run01-bfric-3'};
+runsy = {'','run01','run01-bfric-1','run01-bfric-2','run01-bfric-3'};
+fname = 'energy-avg-x.mat';
+colors = distinguishable_colors(length(runsx));
+hfig1 = figure; hold on;
+hfig2 = figure; hold on;
+hfig3 = figure; hold on;
+hfig4 = figure; hold on;
+hfig5 = figure; hold on
+volume = {'x' '30000' '40000'};
+redo_en = 0;
+redo_l = 1;
+
+k=1;
+for i=1:length(runsx)
+    cd ([dir '\' runsx{i} '\']);
+    file_enx = 'energy-avg-x-mid.mat';
+    file_eny = 'energy-avg-y-mid.mat';
+    filehis = 'ocean_his.nc';
+    fileL = 'length_scales_u-mid.mat';
+     if ~exist(file_enx,'file') | redo_en == 1
+         roms_energy(filehis,[],volume,1,1,'growthrate_u'); 
+         system(['move energy-avg-x.mat ' file_enx]);
+     end
+     if ~exist(file_eny,'file') | redo_en == 1
+         roms_energy(filehis,[],volume,1,2,'growthrate_u'); 
+         system(['move energy-avg-y.mat ' file_eny]);
+     end
+    
+    load(file_enx);
+    misc = roms_load_misc([dir '\' runsx{i} '\ocean_his.nc']);
+    
+    % find time of max growth rate
+    [peaks,locs] = extrema(conv(A./max(A),[1 1]/2,'valid'));
+    Amax = peaks(1);
+    tAmax = time_A(locs(1));
+    time = ncread(filehis,'ocean_time');
+    tind = find_approx(time,tAmax,1);
+    
+    lstrx{i} = [runsx{i} ' | ' num2str(misc.rdrg*1000) ' x 10^{-3}'];    
+    figure(hfig1)
+    plot(time_A./86400,A*86400,'Color', colors(i,:),'LineWidth',1.5);
+    figure(hfig3)
+    plot(t_en./86400, EKE,'Color', colors(i,:),'LineWidth',1.5);
+    xlim([0 5]);
+    
+    if i~=1 
+        lstry{i-1} = [runsy{i} ' | ' num2str(misc.rdrg*1000) ' x 10^{-3}'];
+        load(file_eny)
+        figure(hfig2)
+        plot(time_A./86400,A*86400,'Color', colors(i,:),'LineWidth',1.5);
+        figure(hfig4)
+        plot(t_en./86400, EKE,'Color', colors(i,:),'LineWidth',1.5);
+        xlim([0 5]);
+        
+        
+        % calculate length scale
+        if ~exist(fileL,'file') || redo_l == 1
+            roms_length_scales(filehis,'u',[],volume,0); 
+            system(['move length_scales_u.mat ' fileL]);
+        end
+        load(fileL)
+
+        figure(hfig5)
+        %plot(time_L./86400,L(1,:),'-','Color', colors(i,:),'LineWidth',1.5);
+        plot(time_L./86400,L(2,:),'Color', colors(i,:),'LineWidth',1.5);
+        
+        %lstrL{k} = [runsy{i} ' | ' num2str(misc.rdrg*1000) ' x 10^{-3} | x' ];
+        lstrL{k} = [runsy{i} ' | ' num2str(misc.rdrg*1000) ' x 10^{-3} | y' ]; 
+        k=k+1;
+        
+        ltind = find_approx(time_L,tAmax,1);
+        lAmax(i-1) = L(2,ltind);
+        bfric(i-1) = misc.rdrg;
+    end
+end
+figure(hfig1)
+title('X-averaged');
+xlabel('Time (days)');
+ylabel('Growth Rate (d^{-1})');
+legend(cellstr(lstrx))
+export_fig('E:\Work\instability\graphs\rdrg-x.png');
+
+figure(hfig2)
+title('Y-averaged');
+xlabel('Time (days)');
+ylabel('Growth Rate (d^{-1})');
+legend(cellstr(lstry))
+export_fig('E:\Work\instability\graphs\rdrg-y.png');
+
+figure(hfig3)
+title('X-averaged');
+xlabel('Time (days)');
+ylabel('Energy / per unit mass (ms)^{-1}');
+legend(cellstr(lstrx),'Location','Best')
+export_fig('E:\Work\instability\graphs\energy-x.png');
+
+figure(hfig4)
+title('Y-averaged');
+xlabel('Time (days)');
+ylabel('Energy / per unit mass (ms)^{-1}');
+legend(cellstr(lstry),'Location','Best')
+export_fig('E:\Work\instability\graphs\energy-y.png');
+
+figure(hfig5)
+title('Length Scales');
+xlabel('Time (days)');
+ylabel('Length (m)');
+legend(cellstr(lstrL),'Location','Best')
+export_fig('E:\Work\instability\graphs\length_scales.png');
+
+%%
+figure
+plot(bfric(2:end),lAmax,'*');
+title('Y-length scale at time of max. growth rate');
+xlabel('rdrg (m/s)');
+ylabel('Length scale (m)');
 
 %% Really Old Stuff
 

@@ -10,9 +10,9 @@ clear all
 
 dir = 'E:\Work\instability\ROMS\si_part\edge\2D\';
 %dirs = {'run01','run02','run03','run04','run05','run06','run07'};
-dirs = {'run01','run02','run03','run04','run05','run06','run07','run08','run09','run10_2','run11','run12_2','run13_2','run14_2','run15', ...
+dirs = {'run01','run02','run03','run04','run05','run06','run07','run08','run09','run10_2','run10_3','run10_4','run10_5','run11','run12_2','run13_2','run14_2','run15', ...
         'run16','run17','run18','run19','run21','run23','run24'}; % 4 and 7 are outliers (PVmin / PVmid > 1.1 - greater wavelength too)
-runx = [01 02 03 04 05 06 07 08 09 10.2 11 12.2 13.2 14.2 15 16 17 18 19 21 23 24];
+runx = [01 02 03 04 05 06 07 08 09 10.2 10.3 10.4 10.5 11 12.2 13.2 14.2 15 16 17 18 19 21 23 24];
 fname = 'ocean_his.nc';
 volume = {};
 
@@ -22,6 +22,8 @@ plot_flag = 0;
 redo_en = 0;
 redo_pv = 0;
 
+%dirs = {'run10_2','run10_3','run10_4','run10_5'}; runx = [10.2 10.3 10.4 10.5];
+dir = 'E:\Work\instability\ROMS\si_part\edge\3D\'; dirs = {'run01-2D','run01','run01-bfric-1','run01-bfric-2','run01-bfric-3'}; runx=[0 0.5 1 2 3];
 %dirs = {'run24'}; runx = [24];plot_flag = 1;
 
 thresh = 0.5; % threshold for energy
@@ -35,6 +37,7 @@ for ii=1:length(dirs)
     time = ncread(fname,'ocean_time');
     f0 = mean(misc.f(:));
     g = 9.81;
+    bfric(ii) = misc.rdrg;
 
     dx = mean(mean(diff(roms_grid.x_rho,1,2)));
     dy = mean(mean(diff(roms_grid.y_rho,1,1)));
@@ -47,15 +50,14 @@ for ii=1:length(dirs)
     xmid = ceil(size(roms_grid.x_rho,2)/2);
     ymid = ceil(size(roms_grid.y_rho,1)/2);
     zmid = ceil(size(roms_grid.z_r  ,1)/2);
-    
-       j = ymid;
+
     yind = ymid;
     
     % read data
-    temp = squeeze(double(ncread(fname,'temp',[1 1 1 1],[Inf Inf Inf Inf])));
-       v = squeeze(double(ncread(fname,'v',[1 1 1 1],[Inf Inf Inf Inf])));
-       u = squeeze(double(ncread(fname,'u',[1 1 1 1],[Inf Inf Inf Inf])));
-    temp_mid = squeeze(double(ncread(fname,'temp',[1 ymid 1 1],[Inf 1 Inf 1])));
+    temp = squeeze(double(ncread(fname,'temp',[1 ymid 1 1],[Inf 1 Inf Inf])));
+       v = squeeze(double(ncread(fname,'v',[1 ymid 1 1],[Inf 1 Inf Inf])));
+       u = squeeze(double(ncread(fname,'u',[1 ymid 1 1],[Inf 1 Inf Inf])));
+    %temp_mid = squeeze(double(ncread(fname,'temp',[1 ymid 1 1],[Inf 1 Inf 1])));
     
     if ~exist('ocean_pv.nc','file') || redo_pv == 1, roms_pv(fname,[1 1]); end   
     pv = squeeze(ncread('ocean_pv.nc','pv',[1 ymid 1 1],[Inf 1 Inf 1]));
@@ -63,7 +65,7 @@ for ii=1:length(dirs)
     
     %%%%% find different pv & v regions
     [npvl cpvl cpvr npvr] = find_region(xpv,pv);
-    [nvl  cvl   cvr  nvr] = find_region(xv,squeeze(v(:,ymid,:,1)));
+    [nvl  cvl   cvr  nvr] = find_region(xv,squeeze(v(:,:,1)));
      % x-length scale for velocity gradient (Rossby number calculations)
      Lvx = [cvl-nvl nvr-cvr];
      range_vx = {[find(xv == nvl):find(xv == cvl)], [find(xv == cvr):find(xv == nvr)]};
@@ -75,7 +77,7 @@ for ii=1:length(dirs)
         volume = {'x' rr(1) rr(end)};
         % calculate / load energy diagnostics for current region rr
         if ~exist(ennames{i},'file') || redo_en == 1
-            roms_energy(fname,[],volume,1,1,0); 
+            roms_energy(fname,[],volume,1,1,'growthrate_u'); 
             system(['move energy-avg-x.mat ' ennames{i}]);
         end
         load(ennames{i});
@@ -88,22 +90,22 @@ for ii=1:length(dirs)
         %if locs(2) < locs(1) && peaks(2)/peaks(1) >= 0.8
         %    tAmax = time_A(locs(2));
         %else
-            tAmax = time_A(locs(1));
+            tAmax(ii,i) = time_A(locs(1));
         %end
-        tind = find_approx(time,tAmax,1);
+        tind = find_approx(time,tAmax(ii,i),1);
         % verify
         if plot_flag
             figure;
             plot(time_A./86400, A*86400);
-            linex(tAmax./86400);
+            linex(tAmax(ii,i)./86400);
             title(['Growth Rate' ennames{i}]);
         end
 
         %%%%%%%%%%%%%% Wavelet stuff
         % NEED TO DO BETTER AVERAGING? ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         % do this calculation at a bunch of depths and average????? <-- better estimate of the width
-        um   = mean(u(:,j,:,:),1);
-        up = squeeze(bsxfun(@minus,u(:,j,:,:),um));
+        um   = mean(u(:,:,:),1);
+        up = squeeze(bsxfun(@minus,u(:,:,:),um));
         data = up(:,zmid,tind);
 
         [wave,period,scale,coi] = wavelet(data,dx,1);
@@ -161,8 +163,8 @@ for ii=1:length(dirs)
         
         %%%%% Calculate INITIAL gradients in the current HALF
         tindex = 1; 
-        M2 = g*misc.Tcoef*avg1(                diff(squeeze(temp(rr(1):rr(end),yind,:,tindex)),1,1),2)./dx;
-        N2 = g*misc.Tcoef*avg1(bsxfun(@rdivide,diff(squeeze(temp(rr(1):rr(end),yind,:,tindex)),1,2),permute(dz,[3 1 2])),1);
+        M2 = g*misc.Tcoef*avg1(                diff(squeeze(temp(rr(1):rr(end),:,tindex)),1,1),2)./dx;
+        N2 = g*misc.Tcoef*avg1(bsxfun(@rdivide,diff(squeeze(temp(rr(1):rr(end),:,tindex)),1,2),permute(dz,[3 1 2])),1);
         
         %%%% find mean slope in EDGE effects region ||||||  THIS IS NOISY.
          slope = M2(xpvle:xpvre,:)./N2(xpvle:xpvre,:);
@@ -190,7 +192,7 @@ for ii=1:length(dirs)
           A0(ii,i) = sqrt(1/Ri0-1)*f0*86400;
         
         %%%%% decorrelation length scale
-        ldc(ii,i) = length_scale(v(xvl:xvr,ymid,:,tind),1,dx)*4;
+        ldc(ii,i) = length_scale(v(xvl:xvr,:,tind),1,dx)*4;
         
 %         % check pv 
 %         figure
@@ -291,6 +293,17 @@ plot(plotx(:,1),wsi(:,1)./lsi(:,1),'r*'); hold on
 plot(plotx(:,2),wsi(:,2)./lsi(:,2),'b*'); hold on
 ylabel('No. of wavelengths');
 xlabel(titlex);
+
+figure;
+subplot(211)
+plot(bfric,Amax(:,1),'r*');
+plot(bfric,Amax(:,2),'b*');
+ylabel('Max growth rate A_{max} d^{-1}');
+subplot(212)
+plot(bfric,tAmax(:,1)/86400,'r*');
+plot(bfric,tAmax(:,2)/86400,'b*');
+ylabel('Time of A_{max} (days)');
+xlabel('Bottom Friction');
 
 % print table
 disp('     lsi_l     lsi_r     wsi_l     wsi_r     ri_l      ri_r      ro_l       ro_r      run');
