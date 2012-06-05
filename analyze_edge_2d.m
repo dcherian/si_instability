@@ -9,10 +9,10 @@
 clear all
 
 dir = 'E:\Work\instability\ROMS\si_part\edge\2D\';
-%dirs = {'run01','run02','run03','run04','run05','run06','run07'};
-dirs = {'run01','run02','run03','run04','run05','run06','run07','run08','run09','run10_2','run10_3','run10_4','run10_5','run11','run12_2','run13_2','run14_2','run15', ...
+%dirs = {'run01','run02','run03','run04','run05','run06','run07'}; % 'run10_3','run10_4','run10_5'
+dirs = {'run01','run02','run03','run04','run05','run06','run07','run08','run09','run10_2','run11','run12_2','run13_2','run14_2','run15', ...
         'run16','run17','run18','run19','run21','run23','run24'}; % 4 and 7 are outliers (PVmin / PVmid > 1.1 - greater wavelength too)
-runx = [01 02 03 04 05 06 07 08 09 10.2 10.3 10.4 10.5 11 12.2 13.2 14.2 15 16 17 18 19 21 23 24];
+runx = [01 02 03 04 05 06 07 08 09 10.2 11 12.2 13.2 14.2 15 16 17 18 19 21 23 24];
 fname = 'ocean_his.nc';
 volume = {};
 
@@ -23,7 +23,7 @@ redo_en = 0;
 redo_pv = 0;
 
 %dirs = {'run10_2','run10_3','run10_4','run10_5'}; runx = [10.2 10.3 10.4 10.5];
-dir = 'E:\Work\instability\ROMS\si_part\edge\3D\'; dirs = {'run01-2D','run01','run01-bfric-1','run01-bfric-2','run01-bfric-3'}; runx=[0 0.5 1 2 3];
+%dir = 'E:\Work\instability\ROMS\si_part\edge\3D\'; dirs = {'run01-2D','run01','run01-bfric-1','run01-bfric-2','run01-bfric-3','run01-bfric-4','run01-bfric-5'}; runx=[0 0.5 1 2 3 4 5];
 %dirs = {'run24'}; runx = [24];plot_flag = 1;
 
 thresh = 0.5; % threshold for energy
@@ -176,9 +176,9 @@ for ii=1:length(dirs)
         plotri(ii,i) = Ri0;
         
         %%%%% Calculate Rossby number
-        v0 = max(abs(v(:,:,:,1)));
-        v0 = max(v0(:));
-        plotro(ii,i) = v0/f0/Lvx(i);
+        vx = max(abs(diff(v(xpvle:xpvre,zmid,1),1,1)./dx));
+        v0 = max(abs(v(xpvle:xpvre,zmid,1)));
+        plotro(ii,i) = (vx./f0);
         
         %%%%% calculate theoretical wavelength
         % first velocity scale
@@ -189,7 +189,7 @@ for ii=1:length(dirs)
         
         %%%%% Theoretical and inferred growth rate
         Amax(ii,i) = peaks(1);
-          A0(ii,i) = sqrt(1/Ri0-1)*f0*86400;
+          A0(ii,i) = sqrt(1/Ri0-1+ (-1)^(i-1) *plotro(ii,i))*f0*86400;
         
         %%%%% decorrelation length scale
         ldc(ii,i) = length_scale(v(xvl:xvr,:,tind),1,dx)*4;

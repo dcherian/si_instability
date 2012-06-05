@@ -270,7 +270,7 @@ file2d = [dir2D 'ocean_his.nc'];
 file3d = [dir3D 'ocean_his.nc'];
 
 redo_en = 0;
-redo_l = 1;
+redo_l = 0;
 
 % add some slab stuff
 % %% movies
@@ -355,7 +355,7 @@ L_stone = 2*pi / (pi/sqrt(1-Ri) * f/v0)
 %% Compare different runs at a single timestep
 
 dir = 'E:\Work\instability\ROMS\si_part\edge\3D';
-runs = {'run01','run01-bfric-1','run01-bfric-2','run01-bfric-3'};
+runs = {'\','run01','run01-bfric-1','run01-bfric-2','run01-bfric-3','run01-bfric-4','run01-bfric-5'};
 fname = 'ocean_his.nc';
 file_eny = 'energy-avg-y-mid.mat';
 
@@ -394,8 +394,8 @@ end
 %% plot energy/growth rate/length scale curves on top of each other
 
 dir = 'E:\Work\instability\ROMS\si_part\edge\3D';
-runsx = {'run01-2D','run01','run01-bfric-1','run01-bfric-2','run01-bfric-3'};
-runsy = {'','run01','run01-bfric-1','run01-bfric-2','run01-bfric-3'};
+runsx = {'run01-2D','run01','run01-bfric-1','run01-bfric-2','run01-bfric-3','run01-bfric-4','run01-bfric-5'};
+runsy = {'','run01','run01-bfric-1','run01-bfric-2','run01-bfric-3','run01-bfric-4','run01-bfric-5'};
 fname = 'energy-avg-x.mat';
 colors = distinguishable_colors(length(runsx));
 hfig1 = figure; hold on;
@@ -404,8 +404,10 @@ hfig3 = figure; hold on;
 hfig4 = figure; hold on;
 hfig5 = figure; hold on
 volume = {'x' '30000' '40000'};
+volup = {'x' '30000' '40000'; 'z' '-25' '0'};
+vollow = {'x' '30000' '40000'; 'z' '-50' '-25'};
 redo_en = 0;
-redo_l = 1;
+redo_l = 0;
 
 k=1;
 for i=1:length(runsx)
@@ -505,12 +507,12 @@ ylabel('Length (m)');
 legend(cellstr(lstrL),'Location','Best')
 export_fig('E:\Work\instability\graphs\length_scales.png');
 
-%%
 figure
-plot(bfric(2:end),lAmax,'*');
+plot(bfric,lAmax,'*','MarkerSize',15);
 title('Y-length scale at time of max. growth rate');
-xlabel('rdrg (m/s)');
-ylabel('Length scale (m)');
+xlabel('Bottom Friction r (m/s)');
+ylabel('Y Length scale (m)');
+export_fig('-zbuffer','E:\Work\instability\graphs\lyAmax.png');
 
 %% Really Old Stuff
 
