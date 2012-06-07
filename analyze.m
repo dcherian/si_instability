@@ -355,11 +355,11 @@ L_stone = 2*pi / (pi/sqrt(1-Ri) * f/v0)
 %% Compare different runs at a single timestep
 
 dir = 'E:\Work\instability\ROMS\si_part\edge\3D';
-runs = {'\','run01','run01-bfric-1','run01-bfric-2','run01-bfric-3','run01-bfric-4','run01-bfric-5'};
+runs = {'run01','run01-bfric-1','run01-bfric-2','run01-bfric-3','run01-bfric-4','run01-bfric-5'};
 fname = 'ocean_his.nc';
 file_eny = 'energy-avg-y-mid.mat';
 
-volume = {'x' '30000' '40000'};
+volume = {};%{'x' '30000' '40000'};
 redo_en = 0;
 redo_l = 1;
 
@@ -367,12 +367,12 @@ redo_l = 1;
 
 for i=1:length(runs)
     cd([dir '\' runs{i} '\']);
-    file = [dir '\' runs{i} '\' fname];
+    filehis = [dir '\' runs{i} '\' fname];
     if ~exist(file_eny,'file') | redo_en == 1
          roms_energy(filehis,[],volume,1,2,'growthrate_u'); 
          system(['move energy-avg-y.mat ' file_eny]);
      end
-    misc = roms_load_misc(file);
+    misc = roms_load_misc(filehis);
     
     load(file_eny)
     [peaks,locs] = extrema(conv(A./max(A),[1 1]/2,'valid'));
@@ -381,8 +381,8 @@ for i=1:length(runs)
     time = ncread(filehis,'ocean_time');
     tind = find_approx(time,tAmax,1);
     
-    
-    mod_movie(file,'u',[tind tind],volume,'z','-40','pcolor;shading interp;nocaxis');
+    volume = {};
+    mod_movie(filehis,'u',[tind tind],volume,'y','mid','pcolor;shading interp;nocaxis');
     if i== 1;
      cbar = caxis;
     else

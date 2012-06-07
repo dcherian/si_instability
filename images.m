@@ -28,7 +28,7 @@ v = ncread(file2,'v',[1 1 1 1], [Inf Inf Inf 1]);
 roms_grid = roms_get_grid(file2,file2,0,1);
 hold on
 [c2,h2] = contour(roms_grid.x_v(1,:)/1000,roms_grid.z_v(:,1,1),squeeze(v(:,ceil(size(v,2)/2),:))','b','LineWidth',1.5);
-clabel(c2,h2,[-0.35:0.1:0],'FontSize',16,'Color','b','LabelSpacing',72*6,'Rotation',0);
+clabel(c2,h2,[-0.35:0.1:0],'FontSize',16,'Color','w','LabelSpacing',72*6,'Rotation',0);
 
 pv = ncread(file,'pv',[1 1 1 1],[Inf Inf Inf 1]);
 xpv = ncread(file,'x_pv');
@@ -243,4 +243,7 @@ cd('E:\Work\instability\ROMS\si_part\edge\3D\run01-2D\');
     pause;
     close all
  end
+ 
+ %% 3D slices
+ 
  

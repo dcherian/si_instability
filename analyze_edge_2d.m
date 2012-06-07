@@ -24,7 +24,7 @@ redo_pv = 0;
 
 %dirs = {'run10_2','run10_3','run10_4','run10_5'}; runx = [10.2 10.3 10.4 10.5];
 %dir = 'E:\Work\instability\ROMS\si_part\edge\3D\'; dirs = {'run01-2D','run01','run01-bfric-1','run01-bfric-2','run01-bfric-3','run01-bfric-4','run01-bfric-5'}; runx=[0 0.5 1 2 3 4 5];
-%dirs = {'run24'}; runx = [24];plot_flag = 1;
+dirs = {'run09'}; runx = [24];plot_flag = 1;
 
 thresh = 0.5; % threshold for energy
 
@@ -176,8 +176,8 @@ for ii=1:length(dirs)
         plotri(ii,i) = Ri0;
         
         %%%%% Calculate Rossby number
-        vx = max(abs(diff(v(xpvle:xpvre,zmid,1),1,1)./dx));
-        v0 = max(abs(v(xpvle:xpvre,zmid,1)));
+        vx = max(max(abs(diff(v(xpvle:xpvre,:,1),1,1)./dx)));
+        v0 = max(max(abs(v(xpvle:xpvre,:,1))));
         plotro(ii,i) = (vx./f0);
         
         %%%%% calculate theoretical wavelength
@@ -210,6 +210,16 @@ for ii=1:length(dirs)
             figure(h2) % on u plot
             linex(edgeloc,''); % mark width
             linex([npvl npvr cpvl cpvr]/1000,' ','w');% mark negative + constant pv region
+            
+            %[~,maxindex] = max(abs());
+            %linex(roms_grid.x_rho(1,maxindex(3))/1000,'b');
+            
+            dvdx = diff(v(:,:,1),1,1)./dx;
+            dvdz = bsxfun(@rdivide,diff(v(:,:,1),1,2),dz');
+            figure(h2); hold on;
+            %[c,h] = contour(avg1(roms_grid.x_v(1,:)')/1000,roms_grid.z_v(:,1,1),dvdx'./f0,20,'Color','b','LineWidth',1.5);
+            %clabel(c,h,'Rotation',0,'LabelSpacing',72*4,'Color','b');
+            [c,h] = contour((roms_grid.x_v(1,:)')/1000,avg1(roms_grid.z_v(:,1,1)),dvdz',60,'Color','b','LineWidth',1.5);
             
             figure(h1); title(['Width = ' num2str(w./1000) ' km']);
             figure(h2); title(['Width = ' num2str(w./1000) ' km']);
