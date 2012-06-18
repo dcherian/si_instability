@@ -363,6 +363,11 @@ volume = {};%{'x' '30000' '40000'};
 redo_en = 0;
 redo_l = 1;
 
+cmds = 'pcolor;shading interp;nocaxis';
+
+images = 1; % save to file?
+if images, cmds = 'fancy_cmap;topresent'; imdir = 'E:\Work\instability\graphs\talk\'; end
+
 % add time of max growth rate
 
 for i=1:length(runs)
@@ -382,13 +387,18 @@ for i=1:length(runs)
     tind = find_approx(time,tAmax,1);
     
     volume = {};
-    mod_movie(filehis,'u',[tind tind],volume,'y','mid','pcolor;shading interp;nocaxis');
+    mod_movie(filehis,'u',[tind tind],volume,'y','mid',cmds);
     if i== 1;
      cbar = caxis;
     else
      caxis(cbar);
     end
-    title([runs{i} ' | rdrg = ' num2str(misc.rdrg) ' | ' num2str(time(tind)./86400) ' days']);   
+    title([runs{i} ' | rdrg = ' num2str(misc.rdrg) ' | ' num2str(time(tind)./86400) ' days']); 
+    
+    if images
+        title(sprintf('r = %.1e', misc.rdrg)); 
+        export_fig([imdir runs{i} '.png']); 
+    end
 end
 
 %% plot energy/growth rate/length scale curves on top of each other
