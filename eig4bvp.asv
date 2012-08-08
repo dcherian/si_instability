@@ -1,0 +1,34 @@
+function eig4bvp
+
+sigma = 0.1;
+z = linspace(0,1,100);
+zsolve = z;
+solinit = bvpinit(zsolve,@mat4init,sigma);
+sol = bvp4c(@stoneode,@stonebc,solinit);
+
+fprintf('Eigenvalue: %7.3f.\n',...
+        sol.parameters)
+
+Sxint = deval(sol,zsolve);
+
+phi = [0 Sxint(1,:)]
+plot(z,phi)
+title(['\phi | \sigma = ' num2str(sol.parameters)]) 
+xlabel('z')
+% ------------------------------------------------------------
+function dydz = stoneode(z,y,sigma,k,l,Ri)
+        k=0.6;
+    l=8;
+    Ri=1;
+h = sigma + k*z;
+dydz = [  y(2)
+         -((k^2*(Ri*h.^4 + (3-Ri)*h.^2 -2) + l^2 * (Ri*h.^4 + (1-Ri)*h.^2))./(h.^2 .* (1-h.^2).^2)).*y(1) ];
+% ------------------------------------------------------------
+function res = stonebc(yleft,yb,lambda)
+res = [  ya(1) 
+         yb(1) 
+        ya(2)-1 ];
+% ------------------------------------------------------------
+function yinit = mat4init(z,k,l,Ri)
+yinit = [  cos(z)
+          -sin(z) ];

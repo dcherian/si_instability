@@ -1,0 +1,10 @@
+function [npvl cpvl cpvr npvr] = find_region(xax,data)
+    zmid = size(data,2)/2;
+    xmid = size(data,1)/2;
+    
+    pvind = find(data(:,zmid) < 0);
+     npvl = xax(pvind(1))/1000; % negative pv left
+     npvr = xax(pvind(end))/1000; % and right
+    pvind = find(data(:,zmid) ==  data(xmid,zmid));
+     cpvl = xpv(pvind(1))/1000; % constant pv left
+     cpvr = xpv(pvind(end))/1000; % and right
